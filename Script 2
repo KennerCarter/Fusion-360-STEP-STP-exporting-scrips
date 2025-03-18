@@ -1,0 +1,81 @@
+#########################
+### Script is for exporting only selected bodies.
+#########################
+
+import adsk.core, adsk.fusion, adsk.cam
+
+def run(context):
+    ui = None
+    try:
+        app = adsk.core.Application.get()
+        ui = app.userInterface
+        design = adsk.fusion.Design.cast(app.activeProduct)
+
+        if not design:
+            ui.messageBox('No active Fusion 360 design.', 'Error')
+            return
+
+        # Ask user if they want the design name included in the file names
+        includeDesignName = ui.messageBox('Would you like to include the design name in the exported file names?', 'File Name Option', adsk.core.MessageBoxButtonTypes.YesNoButtonType, adsk.core.MessageBoxIconTypes.QuestionIconType)
+        includeDesignName = (includeDesignName == adsk.core.DialogResults.DialogYes)
+
+        # Ask user to select export folder
+        folderDlg = ui.createFolderDialog()
+        folderDlg.title = 'Select Folder to Export STEP Files'
+        if folderDlg.showDialog() != adsk.core.DialogResults.DialogOK:
+            ui.messageBox('Export cancelled.', 'Info')
+            return
+        exportFolder = folderDlg.folder
+
+        rootComp = design.rootComponent
+        selectedEntities = ui.activeSelections
+
+        if selectedEntities.count == 0:
+            ui.messageBox('No bodies selected. Please select bodies to export.', 'Error')
+            return
+
+        exportMgr = design.exportManager
+
+        bodiesToExport = []
+        for i in range(selectedEntities.count):
+            entity = selectedEntities.item(i).entity
+            if isinstance(entity, adsk.fusion.BRepBody):
+                bodiesToExport.append(entity)
+
+        if not bodiesToExport:
+            ui.messageBox('No valid bodies selected for export.', 'Error')
+            return
+
+        # Store visibility states using the body name as the key
+        visibilityStates = {body.name: body.isVisible for body in rootComp.bRepBodies}
+
+        for body in bodiesToExport:
+            # Hide all bodies
+            for b in rootComp.bRepBodies:
+                b.isVisible = False
+
+            # Show only the current body
+            body.isVisible = True
+
+            # Set up the export file path
+            if includeDesignName:
+                filePath = f'{exportFolder}/{app.activeDocument.name}_{body.name}.step'
+            else:
+                filePath = f'{exportFolder}/{body.name}.step'
+
+            # Create export options
+            stepOptions = exportMgr.createSTEPExportOptions(filePath)
+            exportMgr.execute(stepOptions)
+
+            print(f'Exported: {filePath}')
+
+        # Restore visibility states
+        for body in rootComp.bRepBodies:
+            body.isVisible = visibilityStates.get(body.name, True)
+
+        print('Export completed.')
+        ui.messageBox('All done! =)')
+
+    except Exception as e:
+        if ui:
+            ui.messageBox(f'Failed:\n{str(e)}')
