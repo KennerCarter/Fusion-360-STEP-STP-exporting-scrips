@@ -1,0 +1,66 @@
+#####################################
+### Script is for exporting all bodies in a design
+#####################################
+
+
+import adsk.core, adsk.fusion, adsk.cam
+
+def run(context):
+    ui = None
+    try:
+        app = adsk.core.Application.get()
+        ui = app.userInterface
+        design = adsk.fusion.Design.cast(app.activeProduct)
+
+        if not design:
+            ui.messageBox('No active Fusion 360 design.', 'Error')
+            return
+
+        # Ask user if they want the design name included in the file names
+        includeDesignName = ui.messageBox('Would you like to include the design name in the exported file names?', 'File Name Option', adsk.core.MessageBoxButtonTypes.YesNoButtonType, adsk.core.MessageBoxIconTypes.QuestionIconType)
+        includeDesignName = (includeDesignName == adsk.core.DialogResults.DialogYes)
+
+        # Ask user to select export folder
+        folderDlg = ui.createFolderDialog()
+        folderDlg.title = 'Select Folder to Export STEP Files'
+        if folderDlg.showDialog() != adsk.core.DialogResults.DialogOK:
+            ui.messageBox('Export cancelled.', 'Info')
+            return
+        exportFolder = folderDlg.folder
+
+        rootComp = design.rootComponent
+        bodies = rootComp.bRepBodies
+
+        if bodies.count == 0:
+            ui.messageBox('No bodies found in the design.', 'Error')
+            return
+
+        exportMgr = design.exportManager
+
+        for i in range(bodies.count):
+            # Hide all bodies
+            for body in bodies:
+                body.isVisible = False
+
+            # Show only the current body
+            currentBody = bodies.item(i)
+            currentBody.isVisible = True
+
+            # Set up the export file path
+            if includeDesignName:
+                filePath = f'{exportFolder}/{app.activeDocument.name}_{currentBody.name}.step'
+            else:
+                filePath = f'{exportFolder}/{currentBody.name}.step'
+
+            # Create export options
+            stepOptions = exportMgr.createSTEPExportOptions(filePath)
+            exportMgr.execute(stepOptions)
+
+            print(f'Exported: {filePath}')
+
+        print('Export completed.')
+        ui.messageBox('All done! =)')
+
+    except Exception as e:
+        if ui:
+            ui.messageBox(f'Failed:\n{str(e)}')
