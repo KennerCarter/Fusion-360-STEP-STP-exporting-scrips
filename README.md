@@ -23,7 +23,9 @@ Scrpit 2:
 
 # How to use the scripts
 It will promt you if you want the name of your design as part of the file name. It will always export with the name of the body. So name the bodies.
+
 For both scripts you MUST select a folder or it wont work. Selecting downloads does work.
+
 For script 2 select your bodies before you run the script.
 
 Enjoy!
