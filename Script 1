@@ -2,7 +2,6 @@
 ### Script is for exporting all bodies in a design
 #####################################
 
-
 import adsk.core, adsk.fusion, adsk.cam
 
 def run(context):
@@ -37,6 +36,9 @@ def run(context):
 
         exportMgr = design.exportManager
 
+        # Store visibility states using the body name as the key
+        visibilityStates = {body.name: body.isVisible for body in bodies}
+
         for i in range(bodies.count):
             # Hide all bodies
             for body in bodies:
@@ -57,6 +59,10 @@ def run(context):
             exportMgr.execute(stepOptions)
 
             print(f'Exported: {filePath}')
+
+        # Restore visibility states
+        for body in bodies:
+            body.isVisible = visibilityStates.get(body.name, True)
 
         print('Export completed.')
         ui.messageBox('All done! =)')
