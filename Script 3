@@ -1,0 +1,126 @@
+import adsk.core, adsk.fusion, adsk.cam
+import os
+
+def run(context):
+    ui = None
+    try:
+        app = adsk.core.Application.get()
+        ui = app.userInterface
+        design = adsk.fusion.Design.cast(app.activeProduct)
+
+        if not design:
+            ui.messageBox('No active Fusion 360 design.', 'Error')
+            return
+
+        # Ask user if they want the design name included in the file names
+        includeDesignName = ui.messageBox(
+            'Would you like to include the design name in the exported file names?',
+            'File Name Option',
+            adsk.core.MessageBoxButtonTypes.YesNoButtonType,
+            adsk.core.MessageBoxIconTypes.QuestionIconType
+        ) == adsk.core.DialogResults.DialogYes
+
+        # Choose export folder
+        folderDlg = ui.createFolderDialog()
+        folderDlg.title = 'Select Export Folder'
+        if folderDlg.showDialog() != adsk.core.DialogResults.DialogOK:
+            ui.messageBox('Export cancelled.', 'Info')
+            return
+        exportFolder = folderDlg.folder
+
+        # Ask user for folder name for STEP files
+        folderNameInput = ui.inputBox("Enter a name for the folder to store STEP files:", "Folder Name", app.activeDocument.name)
+
+        # Check if folderNameInput is a list and extract the string value
+        if isinstance(folderNameInput, list):
+            folderNameInput = folderNameInput[0]  # Take the first value in the list
+
+        if not folderNameInput:
+            ui.messageBox('Export cancelled.', 'Info')
+            return
+
+        # Ensure folder name is a string (not a list) and clean any unwanted characters
+        folderNameInput = str(folderNameInput).strip()
+
+        # Ensure the folder path is constructed correctly as a string
+        exportFolderPath = os.path.join(exportFolder, folderNameInput)
+        if not os.path.exists(exportFolderPath):
+            os.makedirs(exportFolderPath)
+
+        # Select components or bodies to export
+        selectedEntities = ui.activeSelections
+        if selectedEntities.count == 0:
+            ui.messageBox('No components or bodies selected.', 'Error')
+            return
+
+        exportMgr = design.exportManager
+        rootComp = design.rootComponent
+        bodiesToExport = []
+
+        for i in range(selectedEntities.count):
+            entity = selectedEntities.item(i).entity
+            if isinstance(entity, adsk.fusion.BRepBody):
+                bodiesToExport.append(entity)
+            elif isinstance(entity, adsk.fusion.Component):
+                bodiesToExport.extend(entity.bRepBodies)
+            elif isinstance(entity, adsk.fusion.Occurrence):
+                bodiesToExport.extend(entity.component.bRepBodies)
+
+        if not bodiesToExport:
+            ui.messageBox('No valid bodies found in selection for export.', 'Error')
+            return
+
+        # Store visibility state
+        visibilityStates = {}
+        allOccurrences = rootComp.allOccurrences
+        for occ in allOccurrences:
+            visibilityStates[occ.fullPathName] = occ.isLightBulbOn
+            for body in occ.component.bRepBodies:
+                key = f"{body.parentComponent.name}:{body.name}"
+                visibilityStates[key] = body.isVisible
+        for body in rootComp.bRepBodies:
+            key = f"{body.parentComponent.name}:{body.name}"
+            visibilityStates[key] = body.isVisible
+
+        # Hide everything and show selected components/bodies
+        for body in bodiesToExport:
+            for occ in allOccurrences:
+                occ.isLightBulbOn = False
+                for b in occ.component.bRepBodies:
+                    b.isVisible = False
+            for b in rootComp.bRepBodies:
+                b.isVisible = False
+
+            # Show the selected body
+            for occ in allOccurrences:
+                if body in occ.component.bRepBodies:
+                    occ.isLightBulbOn = True
+                    body.isVisible = True
+                    break
+            if body in rootComp.bRepBodies:
+                body.isVisible = True
+
+            bodyName = body.name
+            docName = app.activeDocument.name  # Correctly using document name here
+
+            # Export as STEP
+            # Ensure the file path is correctly constructed as a string
+            stepFilePath = os.path.join(exportFolderPath, f"{docName}_{bodyName}.step" if includeDesignName else f"{bodyName}.step")
+            stepOptions = exportMgr.createSTEPExportOptions(stepFilePath)
+            exportMgr.execute(stepOptions)
+            print(f"Exported: {stepFilePath}")
+
+        # Restore visibility
+        for occ in allOccurrences:
+            occ.isLightBulbOn = visibilityStates.get(occ.fullPathName, True)
+            for body in occ.component.bRepBodies:
+                key = f"{body.parentComponent.name}:{body.name}"
+                body.isVisible = visibilityStates.get(key, True)
+        for body in rootComp.bRepBodies:
+            key = f"{body.parentComponent.name}:{body.name}"
+            body.isVisible = visibilityStates.get(key, True)
+
+        ui.messageBox("All done =)")
+    except Exception as e:
+        if ui:
+            ui.messageBox(f"Failed:\n{str(e)}")
