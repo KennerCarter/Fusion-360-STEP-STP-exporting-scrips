@@ -1,0 +1,63 @@
+import adsk.core, adsk.fusion, traceback
+import os
+
+def run(context):
+    ui = None
+    try:
+        app = adsk.core.Application.get()
+        ui  = app.userInterface
+        design = adsk.fusion.Design.cast(app.activeProduct)
+
+        if not design:
+            ui.messageBox('No active Fusion 360 design found.', 'Error')
+            return
+
+        # Prompt user for a filename prefix
+        prefix_input = ui.inputBox('Enter a prefix to add to the filename:', 'Filename Prefix', 'MyPart')
+        prefix = prefix_input[0] if isinstance(prefix_input, list) else prefix_input
+        if not prefix:
+            ui.messageBox('Export cancelled — no prefix provided.')
+            return
+        prefix = prefix.strip().replace("/", "-").replace("\\", "-")
+
+        # Access user parameters
+        param_manager = design.userParameters
+        param_string_parts = []
+        
+        for param in param_manager:
+            name = param.name
+            expr = param.expression.replace(" ", "")  # Remove spaces for file safety
+            expr = expr.replace("/", "-").replace("\\", "-")  # Sanitize path-breaking chars
+            param_string_parts.append(f"{name}_{expr}")
+
+        if not param_string_parts:
+            ui.messageBox('No user parameters found.', 'Info')
+            return
+
+        # Construct final filename
+        filename_base = ", ".join(param_string_parts)
+        filename_full = f"{prefix}, {filename_base}"
+        filename_safe = filename_full.replace("/", "-").replace("\\", "-")
+
+        # Folder selection dialog
+        folder_dialog = ui.createFolderDialog()
+        folder_dialog.title = 'Select Export Folder'
+        dialog_result = folder_dialog.showDialog()
+        
+        if dialog_result != adsk.core.DialogResults.DialogOK:
+            ui.messageBox('Export cancelled.')
+            return
+
+        selected_folder = folder_dialog.folder
+        full_path = os.path.join(selected_folder, f"{filename_safe}.step")
+
+        # STEP export
+        exportMgr = design.exportManager
+        stepOptions = exportMgr.createSTEPExportOptions(full_path)
+        exportMgr.execute(stepOptions)
+
+        ui.messageBox(f"STEP file successfully exported to:\n{full_path}")
+
+    except Exception as e:
+        if ui:
+            ui.messageBox(f"Failed:\n{traceback.format_exc()}")
