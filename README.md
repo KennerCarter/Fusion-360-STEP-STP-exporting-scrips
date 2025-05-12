@@ -13,7 +13,7 @@ Script 3:
   A script, when run, will export only the selected bodies AND components as STEP files, and it will create a folder for all of the files, the folder defaults to the name of the design, but can be changed while running the script
 
 Script 4: 
-  A script, when run, that will pull all of the different variables of the parameter and export them in the file name with the values that are assigned to them (always exports as STEP file)
+  A script, when run, that will pull all of the different variables of the parameter and export them in the file name with the values that are assigned to them (always exports as a STEP file)
 
 # Instillation
 1) Open Fusion 360
