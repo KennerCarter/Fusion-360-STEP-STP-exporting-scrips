@@ -10,7 +10,7 @@ Script 2:
   A script, when run, will export only the selected bodies as STEP files. (STEP files are supported in 3D printer slicers)
 
 Script 3:
-  A script, when run, will export only the selected bodies AND components as STEP files, and it will create a folder for all of the files, the folder defaults to the name of the design but can be changed while running the script
+  A script, when run, will export only the selected bodies AND components as STEP files, and it will create a folder for all of the files, the folder defaults to the name of the design, but can be changed while running the script
 
 # Instillation
 1) Open Fusion 360
@@ -28,8 +28,8 @@ Script 3:
 # How to use the scripts
 It will prompt you if you want the name of your design as part of the file name. It will always export with the name of the body. So name the bodies.
 
-For both scripts you MUST select a folder or it wont work. Selecting downloads does work.
+For all scripts, you MUST select a folder or it won't work. Selecting downloads does work.
 
-For script 2 select your bodies before you run the script.
+For scripts 2 and 3, select your bodies before you run the script.
 
 Enjoy!
